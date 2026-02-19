@@ -173,7 +173,7 @@ Both errors are thrown during `install()`, so misconfigured paths are caught imm
 
 ## Example Project
 
-Brigadier Inception is used in [Among Us in Minecraft](https://github.com/Fantamomo/among-us-in-minecraft/blob/main/src/main/kotlin/com/fantamomo/mc/amongus/command/AmongUsCommands.kt) to block `/msg` while a game is running — both to prevent players in the game from chatting privately, and to prevent outside players from messaging them.
+Brigadier Inception is used in [Among Us in Minecraft](https://github.com/Fantamomo/among-us-in-minecraft/blob/main/src/main/kotlin/com/fantamomo/mc/amongus/command/AmongUsCommands.kt#L65-L145) to block `/msg` while a game is running — both to prevent players in the game from chatting privately, and to prevent outside players from messaging them.
 
 ---
 
