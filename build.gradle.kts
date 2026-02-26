@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.fantamomo.mc"
-version = "1.0-SNAPSHOT"
+version = "1.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -23,7 +23,7 @@ paperweight.reobfArtifactConfiguration =
     io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
 
 kotlin {
-    jvmToolchain(24)
+    jvmToolchain(21)
 }
 
 tasks.test {
