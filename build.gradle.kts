@@ -43,7 +43,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/Fantamomo/DEIN-REPO-NAME")
+            url = uri("https://maven.pkg.github.com/Fantamomo/brigadier-interception")
 
             credentials {
                 username = project.findProperty("gpr.user") as String?
