@@ -39,4 +39,19 @@ publishing {
             version = project.version.toString()
         }
     }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/Fantamomo/DEIN-REPO-NAME")
+
+            credentials {
+                username = project.findProperty("gpr.user") as String?
+                    ?: System.getenv("GITHUB_ACTOR")
+
+                password = project.findProperty("gpr.key") as String?
+                    ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
 }
