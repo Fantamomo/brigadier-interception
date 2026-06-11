@@ -1,4 +1,4 @@
-# Brigadier Inception
+# Brigadier Interception
 
 A simple but powerful Paper library for intercepting Brigadier commands at the node level — cleanly, reliably, and without touching raw command strings.
 
@@ -34,23 +34,21 @@ You could register your own `/msg` command that mirrors the vanilla one. But thi
 
 ---
 
-### Option 4: Brigadier Inception ✅
+### Option 4: Brigadier Interception ✅
 
 ```kotlin
-lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) {
-    BrigadierInterceptor.build(it.registrar().dispatcher) {
-        path("msg", "targets", "message")
+lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
+    val interceptor = BrigadierInterceptor(event.registrar().dispatcher)
 
-        intercept {
-            val sender = context.source.sender
+    interceptor.path("msg", "targets", "message").interceptExecute {
+        val sender = context.source.sender
 
-            if (isSenderBlocked(sender)) {
-                sender.sendMessage("You cannot use this command right now.")
-                return@intercept 0
-            }
-
-            return@intercept runOriginal()
+        if (isSenderBlocked(sender)) {
+            sender.sendMessage("You cannot use this command right now.")
+            return@interceptExecute 0
         }
+
+        runOriginal()
     }
 }
 ```
@@ -61,28 +59,28 @@ That's it.
 
 ## How It Works
 
-We register a handler for the [`COMMANDS` lifecycle event](https://docs.papermc.io/paper/dev/lifecycle/), then call `BrigadierInterceptor.build` with the dispatcher from the command registrar.
+We register a handler for the [`COMMANDS` lifecycle event](https://docs.papermc.io/paper/dev/lifecycle/), then initialize a `BrigadierInterceptor` with the dispatcher from the command registrar.
 
-`path("msg", "targets", "message")` navigates the Brigadier command tree: the first element is the command name, the rest are its argument nodes. For `/msg <targets> <message>`, the executable handler lives at the `message` node — and that's exactly where we install the interception.
+`interceptor.path("msg", "targets", "message")` navigates the Brigadier command tree: the first element is the command name, the rest are its argument nodes. For `/msg <targets> <message>`, the executable handler lives at the `message` node — and that's exactly where we install the interception.
 
-You can call `path` multiple times. The interception block will be installed on every path you provide.
+Calling `interceptExecute` replaces the command handler for that node with a custom block.
 
-Inside the `intercept` block, `context` exposes the full `CommandContext`, including the command source and all parsed arguments. Call `runOriginal()` to let the command proceed normally, or return early with a result code to block it.
+Inside the `interceptExecute` block, `context` exposes the full `CommandContext`, including the command source and all parsed arguments. Call `runOriginal()` to let the command proceed normally, or return early with a result code to block it.
 
 > **Note on argument types:** For intercepted vanilla commands, the arguments are the underlying NMS types that Paper wraps internally. This means Paper-specific resolvers like `PlayerSelectorArgumentResolver` are not available for those arguments. For vanilla commands like `/msg`, you need to use the corresponding NMS argument type directly — in this case, `net.minecraft.commands.arguments.EntityArgument`.
 
 ---
 
-## Why Brigadier Inception
+## Why Brigadier Interception
 
-|                               | `PlayerCommandPreprocessEvent`                  | Brigadier Inception           |
+|                               | `PlayerCommandPreprocessEvent`                  | Brigadier Interception        |
 |-------------------------------|-------------------------------------------------|-------------------------------|
 | Works with `/execute`         | ⚠️ Fired, but you must parse the chain yourself | ✅ Always intercepted cleanly  |
 | Targets exact Brigadier node  | ❌ String matching only                          | ✅ Node-level precision        |
 | Access to parsed arguments    | ❌ Raw string only                               | ✅ Full `CommandContext`       |
 | Aliases handled automatically | ❌ Must cover each one                           | ✅ Via node redirect           |
 
-**On aliases:** In vanilla Minecraft, `/tell` and `/w` redirect internally to the same Brigadier node as `/msg`. Because Brigadier Inception replaces the handler directly on that node, all redirecting aliases automatically inherit the change — no duplicate interceptions needed.
+**On aliases:** In vanilla Minecraft, `/tell` and `/w` redirect internally to the same Brigadier node as `/msg`. Because Brigadier Interception replaces the handler directly on that node, all redirecting aliases automatically inherit the change — no duplicate interceptions needed.
 
 ---
 
@@ -114,50 +112,58 @@ Paper's [`BasicCommand`](https://docs.papermc.io/paper/dev/command-api/misc/basi
 
 ### `BrigadierInterceptor`
 
-The entry point. Use `build` for a concise one-shot setup:
+The entry point. Initialize it with a `CommandDispatcher<CommandSourceStack>`.
+
+#### `path(vararg path: String)`
+Locates a node by its name at each step.
+
+#### `typed { ... }`
+A more powerful DSL for locating nodes by name, argument class, or argument type.
 
 ```kotlin
-BrigadierInterceptor.build(dispatcher) {
-    path("msg", "targets", "message")
-
-    intercept {
-        runOriginal()
-    }
-}
-```
-
-Use `builder` for more explicit control, or when building interceptions programmatically:
-
-```kotlin
-val builder = BrigadierInterceptor.builder(dispatcher)
-
-builder.path("msg", "targets", "message")
-builder.intercept {
+interceptor.typed {
+    name("msg")
+    type(EntitySelector::class) // matches an argument node that returns EntitySelector
+    argument(EntityArgument::class) // matches an argument node of type EntityArgument
+}.interceptExecute {
     runOriginal()
 }
-
-builder.install()
 ```
-
-Note that `build` calls `install()` automatically — you only need to call it manually when using the `builder`.
 
 ---
 
-### `InceptionContext`
+### `InterceptionTarget`
 
-Provided to every interception block. Exposes:
+Returned by `path` or `typed`. Provides methods to install interceptions.
 
-- `context: CommandContext<CommandSourceStack>` — the full Brigadier context, including source and parsed arguments
-- `runOriginal(): Int` — executes the original command handler and returns its result
+- `interceptExecute { ... }` — Intercepts the execution of the command.
+- `interceptRequirement { ... }` — Intercepts the requirement check (e.g. permissions).
+- `hasExecute(): Boolean` — Checks if the node has an execution handler.
+- `hasCustomRequirement(): Boolean` — Checks if the node has a custom requirement set (the default requirement just returns `true`)
+
+---
+
+### Interception Contexts
+
+Blocks passed to `interceptExecute` and `interceptRequirement` have access to an interception context.
+
+#### Execution Interception (`interceptExecute`)
+- `context: CommandContext<CommandSourceStack>` — the full Brigadier context.
+- `runOriginal(): Int` — executes the original command handler.
+
+#### Requirement Interception (`interceptRequirement`)
+- `context: CommandSourceStack` — the command source stack.
+- `runOriginal(): Boolean` — checks the original requirement.
 
 ---
 
 ## Error Handling
 
-Both errors are thrown during `install()`, so misconfigured paths are caught immediately at startup rather than failing silently at runtime.
+Errors are thrown when resolving the path or installing the interception, allowing misconfigurations to be caught early.
 
-- **`IllegalArgumentException`** — a segment in the provided path does not exist in the command tree
-- **`IllegalStateException`** — the target node exists but has no command handler (i.e. it is not executable)
+- **`UnknownPathSegmentException`** — a segment in the provided path does not exist in the command tree.
+- **`MissingInterceptionTargetException`** — the target node exists but lacks the requested handler (e.g. calling `interceptExecute` on a non-executable node).
+- **`IllegalArgumentException`** — if the provided path is empty or invalid.
 
 ---
 
@@ -173,7 +179,7 @@ Both errors are thrown during `install()`, so misconfigured paths are caught imm
 
 ## Example Project
 
-Brigadier Inception is used in [Among Us in Minecraft](https://github.com/Fantamomo/among-us-in-minecraft/blob/main/src/main/kotlin/com/fantamomo/mc/amongus/command/AmongUsCommands.kt#L65-L145) to block `/msg` while a game is running — both to prevent players in the game from chatting privately, and to prevent outside players from messaging them.
+Brigadier Interception is used in [Among Us in Minecraft](https://github.com/Fantamomo/among-us-in-minecraft/blob/main/src/main/kotlin/com/fantamomo/mc/amongus/command/AmongUsCommands.kt#L65-L145) to block `/msg` while a game is running — both to prevent players in the game from chatting privately, and to prevent outside players from messaging them.
 
 ---
 
