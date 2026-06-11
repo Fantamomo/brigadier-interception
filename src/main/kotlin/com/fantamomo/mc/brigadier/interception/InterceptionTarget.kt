@@ -10,7 +10,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.tree.CommandNode
 import io.papermc.paper.command.brigadier.CommandSourceStack
 
-class InceptionTarget internal constructor(private val target: CommandNode<CommandSourceStack>) {
+class InterceptionTarget internal constructor(private val target: CommandNode<CommandSourceStack>) {
 
     /**
      * Checks if the target has an execute command.
